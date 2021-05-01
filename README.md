@@ -3,7 +3,7 @@ GraphEditor Plugin for MikuMikuMoving(x64)
 
 
 
-既存のMMM用グラフエディタプラグイン（https://ja.osdn.net/users/hmml/pf/mmm_graph_editor/wiki/FrontPage）を参考に適当に作った読み取り専用のグラフエディタです。
+既存のMMM用グラフエディタプラグイン (https://ja.osdn.net/users/hmml/pf/mmm_graph_editor/wiki/FrontPage) を参考に適当に作った読み取り専用のグラフエディタです。
 
 既存のグラフエディタプラグインには5461フレームまでしか表示できない仕様があったのをフルフレーム表示できるようにしてあります。
 
