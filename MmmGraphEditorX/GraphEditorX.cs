@@ -67,17 +67,9 @@ namespace MmmGraphEditorX
             this.rootControl._graphViewPlaceHolder = null;
 
 
-            //this.rootControl.SizeChanged += rootControl_SizeChanged;
-            //this.rootControl.AutoSize = true;
-            //this.rootControl.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-            //this.rootControl.AutoSizeChanged += RootControl_AutoSizeChanged;
             this.rootControl.ParentChanged += RootControl_ParentChanged;
             this.rootControl.SizeChanged += RootControl_SizeChanged;
 
-
-            //!@todo need implements.
-            //this.control.config = this.config;
-            //this.control.UpdateUIStateByConfig();
             fitControls();
             rootControl.Configuration = configuration;
 
@@ -103,29 +95,14 @@ namespace MmmGraphEditorX
             fitToParent();
         }
 
-        private void RootControl_AutoSizeChanged(object sender, EventArgs e)
-        {
-            var w = this.rootControl.Width;
-            var h = this.rootControl.Height;
-
-        }
-
-        private void rootControl_SizeChanged(object sender, EventArgs e)
-        {
-            var w = this.rootControl.Width;
-            var h = this.rootControl.Height;
-        }
-
         public void Disabled()
         {
-            //!@todo need implements.
-            //this.m_rootControl.Scene = null;
+            rootControl.Scene = null;
         }
 
         public void Dispose()
         {
-            //!@todo need implements.
-            //this.m_rootControl.Scene = null;
+            rootControl.Scene = null;
         }
 
         public void Enabled()
