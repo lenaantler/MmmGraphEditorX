@@ -103,6 +103,9 @@ namespace MmmGraphEditorX
         public void Dispose()
         {
             rootControl.Scene = null;
+
+            if (prevParent != null) prevParent.SizeChanged -= Parent_SizeChanged;
+            prevParent = null;
         }
 
         public void Enabled()
