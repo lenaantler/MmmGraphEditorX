@@ -15,9 +15,11 @@ namespace MmmGraphEditorX
     public partial class GraphView : UserControl
     {
         private Scene _scene;
-        internal MikuMikuPlugin.Scene Scene {
+        internal MikuMikuPlugin.Scene Scene
+        {
             get { return _scene; }
-            set {
+            set
+            {
                 _scene = value;
                 updateTarget();
             }
@@ -27,7 +29,8 @@ namespace MmmGraphEditorX
 
         internal MikuMikuPlugin.MotionLayer TargetMotionLayer { get; set; }
         private MikuMikuPlugin.Bone _targetBone;
-        internal MikuMikuPlugin.Bone TargetBone {
+        internal MikuMikuPlugin.Bone TargetBone
+        {
             get { return _targetBone; }
             set
             {
@@ -40,12 +43,25 @@ namespace MmmGraphEditorX
                 {
                     qWorldToLocal = Quaternion.Identity;
                 }
-            } 
+            }
         }
 
         private Quaternion qWorldToLocal = Quaternion.Identity;
         private float minGraphValue = -3.2f;  // Math.PI + margin;
         private float maxGraphValue = 3.2f;  // Math.PI + margin;
+        private float[] scales = {1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 32.0f };
+        private const int kDefaultScaleIndex = 0; // = 1.0f
+        private int scaleIndex = kDefaultScaleIndex;
+
+        internal float ZoomScale
+        {
+            get
+            {
+                return scales[scaleIndex];
+            }
+        }
+        internal int ViewOffset { get; set; }
+
 
 
         public GraphView()
@@ -166,12 +182,16 @@ namespace MmmGraphEditorX
             float max = 3.2f;  // Math.PI + margin;
             float min = -3.2f; // Math.PI + margin;
 
+            bool[] enabled = { Configuration.txEnabled, Configuration.tyEnabled, Configuration.tzEnabled };
+
             foreach (IMotionFrameData frameData in TargetMotionLayer.Frames)
             {
                 if (!isHitMarker && frameData.FrameNumber == Scene.MarkerPosition)
                 {
                     for (int n = 0; n < 3; ++n)
                     {
+                        if (!enabled[n]) continue;
+
                         float value = TargetMotionLayer.CurrentLocalMotion.Move[n];
                         if (max < value) max = value;
                         else if (value < min) min = value;
@@ -181,6 +201,8 @@ namespace MmmGraphEditorX
 
                 for (int n = 0; n < 3; ++n)
                 {
+                    if (!enabled[n]) continue;
+
                     float value = frameData.Position[n];
                     if (max < value) max = value;
                     else if (value < min) min = value;
@@ -222,8 +244,7 @@ namespace MmmGraphEditorX
                 int x = xCenter - (numOfHalfFrames * GraphEditorX.frameWidth) + (n * GraphEditorX.frameWidth);
                 int y1 = 0;
                 int y2 = Height;
-                RectangleF rect = new RectangleF(x - (GraphEditorX.frameWidth * 2), 2, GraphEditorX.frameWidth * 4, Font.Height);
-                g.DrawLine(pen, x, y1, x, y2 );
+                g.DrawLine(pen, x, y1, x, y2);
             }
 
 
@@ -232,8 +253,8 @@ namespace MmmGraphEditorX
             //
 
             float maxRange = Math.Max(Math.Abs(maxGraphValue), Math.Abs(minGraphValue));
-            float valueScale = (Height / 2) / maxRange;
-            int yCenter = Height / 2;
+            float valueScale = ((Height / 2) / maxRange) * ZoomScale;
+            int yCenter = (Height / 2) - ViewOffset;
 
 
             // draw rotation range line.
@@ -291,9 +312,9 @@ namespace MmmGraphEditorX
         {
             int markerPosition = (int)Scene.MarkerPosition;
             float maxRange = Math.Max(Math.Abs(maxGraphValue), Math.Abs(minGraphValue));
-            float valueScale = (Height / 2) / maxRange;
+            float valueScale = ((Height / 2) / maxRange) * ZoomScale;
             int xCenter = Width / 2;
-            int yCenter = Height / 2;
+            int yCenter = (Height / 2) - ViewOffset;
 
             Brush[] brushs = { Brushes.Red, Brushes.Green, Brushes.Blue };
             Brush[] brushs2 = { Brushes.DeepPink, Brushes.YellowGreen, Brushes.DodgerBlue };
@@ -302,10 +323,18 @@ namespace MmmGraphEditorX
             Quaternion rot = worldToLocalRotation(((markerPosition == frameData.FrameNumber) ? TargetMotionLayer.CurrentLocalMotion.Rotation : frameData.Quaternion));
             Vector3 euler = eulerZXYFromQuaternion(rot);
 
+
             int frameOffset = (int)frameData.FrameNumber - markerPosition;
 
             int size = GraphEditorX.keySize;
             int x = xCenter + GraphEditorX.frameWidth * frameOffset;
+
+
+            if (!isValid(pos, euler))
+            {
+                g.DrawLine(Pens.Red, x, 0, x, Height);
+                return;
+            }
 
             // draw key value rect.
 
@@ -337,15 +366,21 @@ namespace MmmGraphEditorX
 
         }
 
+        private bool isValid(Vector3 pos, Vector3 euler)
+        {
+            if (float.IsNaN(pos.X) || float.IsNaN(pos.Y) || float.IsNaN(pos.Z) || float.IsNaN(euler.X) || float.IsNaN(euler.Y) || float.IsNaN(euler.Z)) return false;
+            return true;
+        }
+
         private void drawTranslationLine(Graphics g, IMotionFrameData from, IMotionFrameData to)
         {
             if (from == null) return;
 
             int markerPosition = (int)Scene.MarkerPosition;
             float maxRange = Math.Max(Math.Abs(maxGraphValue), Math.Abs(minGraphValue));
-            float valueScale = (Height / 2) / maxRange;
+            float valueScale = ((Height / 2) / maxRange) * ZoomScale;
             int xCenter = Width / 2;
-            int yCenter = Height / 2;
+            int yCenter = (Height / 2) - ViewOffset;
 
             int frameSpan = (int)(to.FrameNumber - from.FrameNumber);
             int xSpan = frameSpan * GraphEditorX.frameWidth;
@@ -380,9 +415,9 @@ namespace MmmGraphEditorX
 
             int markerPosition = (int)Scene.MarkerPosition;
             float maxRange = Math.Max(Math.Abs(maxGraphValue), Math.Abs(minGraphValue));
-            float valueScale = (Height / 2) / maxRange;
+            float valueScale = ((Height / 2) / maxRange) * ZoomScale;
             int xCenter = Width / 2;
-            int yCenter = Height / 2;
+            int yCenter = (Height / 2) - ViewOffset;
 
             int frameSpan = (int)(to.FrameNumber - from.FrameNumber);
             int xSpan = frameSpan * GraphEditorX.frameWidth;
@@ -426,6 +461,16 @@ namespace MmmGraphEditorX
             }
         }
 
+        internal void zoomIn()
+        {
+            if (scaleIndex < (scales.Length - 1)) ++scaleIndex;
+        }
+
+        internal void zoomOut()
+        {
+            if (0 < scaleIndex) --scaleIndex;
+            if (ZoomScale <= 1.0f) ViewOffset = 0;
+        }
 
 
 
@@ -441,8 +486,15 @@ namespace MmmGraphEditorX
 
             Graphics g = e.Graphics;
 
-            drawGrid(g);
-            drawGraph(g);
+            try
+            {
+                drawGrid(g);
+                drawGraph(g);
+            }
+            catch (Exception)
+            {
+                // ignore.
+            }
         }
     }
 }
