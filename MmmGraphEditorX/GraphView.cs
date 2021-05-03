@@ -49,6 +49,9 @@ namespace MmmGraphEditorX
         private Quaternion qWorldToLocal = Quaternion.Identity;
         private float minGraphValue = -3.2f;  // Math.PI + margin;
         private float maxGraphValue = 3.2f;  // Math.PI + margin;
+        private int firstFrameNumber = 0;
+        private int lastFrameNumber = 0;
+
         private float[] scales = {1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 3.0f, 4.0f, 6.0f, 8.0f, 16.0f, 32.0f };
         private const int kDefaultScaleIndex = 0; // = 1.0f
         private int scaleIndex = kDefaultScaleIndex;
@@ -140,6 +143,7 @@ namespace MmmGraphEditorX
             TargetMotionLayer = activeMotionLayer;
             TargetBone = activeBone;
 
+            updateFrameRange();
             updateValueRange();
         }
 
@@ -174,18 +178,56 @@ namespace MmmGraphEditorX
             return Quaternion.Normalize(Quaternion.RotationAxis(new Vector3(axis.X, axis.Y, axis.Z), q.Angle));
         }
 
+        private void updateFrameRange()
+        {
+            if (Scene == null || TargetMotionLayer == null)
+            {
+                firstFrameNumber = 0;
+                lastFrameNumber = 0;
+                return;
+            }
+            int markerPosition = (int)Scene.MarkerPosition;
+            int drawFrameCount = (int)Math.Floor((float)Width / (float)GraphEditorX.frameWidth) + 2;
+            firstFrameNumber = markerPosition - drawFrameCount / 2;
+            lastFrameNumber = firstFrameNumber + drawFrameCount;
+
+            {
+                int prevFrameNumber = 0;
+                int postFrameNumber = int.MaxValue;
+
+                foreach (IMotionFrameData frameData in TargetMotionLayer.Frames)
+                {
+                    if (frameData.FrameNumber < firstFrameNumber) prevFrameNumber = (int)frameData.FrameNumber;
+                    if (lastFrameNumber < frameData.FrameNumber && frameData.FrameNumber < postFrameNumber)
+                    {
+                        postFrameNumber = (int)frameData.FrameNumber;
+
+                        //System.Diagnostics.Trace.WriteLine("post frame number:" + postFrameNumber.ToString());
+                    }
+                }
+
+                if (postFrameNumber == int.MaxValue) postFrameNumber = lastFrameNumber;
+
+                firstFrameNumber = prevFrameNumber;
+                lastFrameNumber = postFrameNumber;
+            }
+        }
+
         internal void updateValueRange()
         {
             if (TargetMotionLayer == null || TargetBone == null) return;
 
             bool isHitMarker = false;
-            float max = 3.2f;  // Math.PI + margin;
-            float min = -3.2f; // Math.PI + margin;
+            float max = (float)Math.PI;
+            float min = (float)-Math.PI;
 
             bool[] enabled = { Configuration.txEnabled, Configuration.tyEnabled, Configuration.tzEnabled };
 
             foreach (IMotionFrameData frameData in TargetMotionLayer.Frames)
             {
+                if (frameData.FrameNumber < firstFrameNumber) continue;
+                if (lastFrameNumber < frameData.FrameNumber) break;
+
                 if (!isHitMarker && frameData.FrameNumber == Scene.MarkerPosition)
                 {
                     for (int n = 0; n < 3; ++n)
@@ -209,8 +251,8 @@ namespace MmmGraphEditorX
                 }
             }
 
-            minGraphValue = min;
-            maxGraphValue = max;
+            minGraphValue = min - 1.0f;
+            maxGraphValue = max + 1.0f;
         }
 
         /// <summary>
@@ -268,31 +310,6 @@ namespace MmmGraphEditorX
             if (Scene == null) return;
             if (TargetMotionLayer == null) return;
 
-            int markerPosition = (int)Scene.MarkerPosition;
-            int drawFrameCount = (int)Math.Floor((float)Width / (float)GraphEditorX.frameWidth) + 2;
-            int firstFrameNumber = markerPosition - drawFrameCount / 2;
-            int lastFrameNumber = firstFrameNumber + drawFrameCount;
-
-            {
-                int prevFrameNumber = 0;
-                int postFrameNumber = int.MaxValue;
-
-                foreach (IMotionFrameData frameData in TargetMotionLayer.Frames)
-                {
-                    if (frameData.FrameNumber < firstFrameNumber) prevFrameNumber = (int)frameData.FrameNumber;
-                    if (lastFrameNumber < frameData.FrameNumber && frameData.FrameNumber < postFrameNumber)
-                    {
-                        postFrameNumber = (int)frameData.FrameNumber;
-
-                        //System.Diagnostics.Trace.WriteLine("post frame number:" + postFrameNumber.ToString());
-                    }
-                }
-
-                if (postFrameNumber == int.MaxValue) postFrameNumber = lastFrameNumber;
-
-                firstFrameNumber = prevFrameNumber;
-                lastFrameNumber = postFrameNumber;
-            }
 
             IMotionFrameData prevFrameData = null;
 
@@ -474,6 +491,15 @@ namespace MmmGraphEditorX
 
 
 
+        #region message handlers.
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+
+            updateFrameRange();
+        }
+
         protected override void OnPaintBackground(PaintEventArgs e)
         {
             //base.OnPaintBackground(e);
@@ -496,5 +522,7 @@ namespace MmmGraphEditorX
                 // ignore.
             }
         }
+
+        #endregion
     }
 }
