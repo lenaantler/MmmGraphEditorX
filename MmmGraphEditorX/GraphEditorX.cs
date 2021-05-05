@@ -155,7 +155,7 @@ namespace MmmGraphEditorX
         /// <param name="ElapsedTime"></param>
         public void Update(float Frame, float ElapsedTime)
         {
-            //this.fitToParent();
+            this.rootControl.Scene = this.Scene;
 
             if (this.Scene == null) return;
             if (!this.Scene.State.Equals(SceneState.Editing)) return;
@@ -172,7 +172,6 @@ namespace MmmGraphEditorX
             stopWatch.Reset();
             stopWatch.Start();
 
-            this.rootControl.Scene = this.Scene;
             this.rootControl.Refresh();
         }
 

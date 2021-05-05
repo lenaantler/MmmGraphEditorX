@@ -433,30 +433,39 @@ namespace MmmGraphEditorX
             int markerPosition = (int)Scene.MarkerPosition;
             float maxRange = Math.Max(Math.Abs(maxGraphValue), Math.Abs(minGraphValue));
             float valueScale = ((Height / 2) / maxRange) * ZoomScale;
+            int piValue = (int)(Math.PI * valueScale);
             int xCenter = Width / 2;
             int yCenter = (Height / 2) - ViewOffset;
 
             int frameSpan = (int)(to.FrameNumber - from.FrameNumber);
             int xSpan = frameSpan * GraphEditorX.frameWidth;
             int xFrom = xCenter - (int)(Scene.MarkerPosition - from.FrameNumber) * GraphEditorX.frameWidth;
-            int xTo = xCenter - (int)(Scene.MarkerPosition - to.FrameNumber) * GraphEditorX.frameWidth;
 
-            Quaternion qFrom = worldToLocalRotation((Scene.MarkerPosition == from.FrameNumber) ? TargetMotionLayer.CurrentLocalMotion.Rotation : from.Quaternion);
-            Quaternion qTo = worldToLocalRotation((Scene.MarkerPosition == to.FrameNumber) ? TargetMotionLayer.CurrentLocalMotion.Rotation : to.Quaternion);
-            Vector3 fromEuler = eulerZXYFromQuaternion(qFrom);
-            Vector3 toEuler = eulerZXYFromQuaternion(qTo);
+            Quaternion qFrom = worldToLocalRotation((markerPosition == from.FrameNumber) ? TargetMotionLayer.CurrentLocalMotion.Rotation : from.Quaternion);
+            Quaternion qTo = worldToLocalRotation((markerPosition == to.FrameNumber) ? TargetMotionLayer.CurrentLocalMotion.Rotation : to.Quaternion);
 
 
-            MikuMikuPlugin.InterpolatePoint[] interpolations = { to.InterpolXA, to.InterpolXB, to.InterpolYA, to.InterpolYB, to.InterpolZA, to.InterpolZB };
-            Brush[] brushes = { Brushes.DeepPink, Brushes.YellowGreen, Brushes.DodgerBlue };
+            bool[] enabled = { Configuration.rxEnabled, Configuration.ryEnabled, Configuration.rzEnabled };
+
+            List<List<Point>> xPoints = new List<List<Point>>();
+            List<List<Point>> yPoints = new List<List<Point>>();
+            List<List<Point>> zPoints = new List<List<Point>>();
+            List<List<Point>>[] points = { xPoints, yPoints, zPoints };
+            xPoints.Add(new List<Point>());
+            yPoints.Add(new List<Point>());
+            zPoints.Add(new List<Point>());
+
+            Pen[] pens = { Pens.DeepPink, Pens.YellowGreen, Pens.DodgerBlue };
+
 
             double t = 0;
             double tx = 0;
             double amount = 0;
-            for (int n = 0; n < xSpan; ++n)
+
+            for (int n = 0; n <= xSpan; ++n)
             {
-                if ((xFrom + n) < 0) continue;
-                if (Width < (xFrom + n)) break;
+                //if ((xFrom + n) < 0) continue;
+                //if (Width < (xFrom + n)) break;
 
                 while (tx < n && t < 1)
                 {
@@ -464,16 +473,46 @@ namespace MmmGraphEditorX
                     tx = (t * t * t + 3 * t * t * (1 - t) * to.InterpolRB.X / 128 + 3 * t * (1 - t) * (1 - t) * to.InterpolRA.X / 128) * xSpan;
                 }
                 amount = (t * t * t + 3 * t * t * (1 - t) * to.InterpolRB.Y / 128 + 3 * t * (1 - t) * (1 - t) * to.InterpolRA.Y / 128);
-
                 Quaternion qMiddle = Quaternion.Slerp(qFrom, qTo, (float)amount);
                 Vector3 euler = eulerZXYFromQuaternion(qMiddle);
 
-                bool[] enabled = { Configuration.rxEnabled, Configuration.ryEnabled, Configuration.rzEnabled };
                 for (int m = 0; m < 3; ++m)
                 {
                     if (!enabled[m]) continue;
 
-                    g.FillRectangle(brushes[m], xFrom + n, yCenter - (euler[m] * valueScale), 1, 2);
+                    int x = xFrom + n;
+                    int y = (int)(yCenter - (euler[m] * valueScale));
+
+                    // 縦断判定
+                    if ((0 < points[m].Last().Count) && (piValue < Math.Abs(y - points[m].Last().Last().Y)))
+                    {
+                        Point line1 = new Point(x, (y < yCenter) ? (int)(yCenter + piValue) : (int)(yCenter - piValue));  // 手抜きロジック
+                        Point line2 = new Point(x, (y < yCenter) ? (int)(yCenter - piValue) : (int)(yCenter + piValue));  // 手抜きロジック
+
+                        points[m].Last().Add(line1);
+                        points[m].Add(new List<Point>());
+                        points[m].Last().Add(line2);
+                    }
+                    points[m].Last().Add(new Point(x, y));
+                }
+            }
+            for (int n = 0; n < 3; ++n)
+            {
+                if (!enabled[n]) continue;
+
+                Vector3 euler = eulerZXYFromQuaternion(qTo);
+                int x = xFrom + xSpan;
+                int y = (int)(yCenter - (euler[n] * valueScale));
+                points[n].Last().Add(new Point(x, y));
+            }
+
+            for (int n = 0; n < 3; ++n)
+            {
+                if (!enabled[n]) continue;
+
+                foreach (List<Point> p in points[n])
+                {
+                    g.DrawLines(pens[n], p.ToArray());
                 }
             }
         }
